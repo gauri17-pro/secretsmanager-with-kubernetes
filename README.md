@@ -6,6 +6,11 @@ Kubernetes manifests for syncing database credentials from AWS Secrets Manager i
 
 - EKS cluster with OIDC provider configured
 - [External Secrets Operator](https://external-secrets.io/) installed in the cluster
+  ```bash
+  helm repo add external-secrets https://charts.external-secrets.io
+  helm repo update
+  helm install external-secrets external-secrets/external-secrets --namespace external-secrets --create-namespace --set installCRDs=true
+  ```
 - IAM role with the following permissions:
   ```json
   {
