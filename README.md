@@ -37,6 +37,8 @@ Kubernetes manifests for syncing database credentials from AWS Secrets Manager i
 | `service-account.yaml` | ServiceAccount annotated with the IAM role ARN for IRSA |
 | `cluster-secret-store.yaml` | ClusterSecretStore connecting ESO to AWS Secrets Manager in `ap-south-1` |
 | `external-secret.yaml` | ExternalSecret that syncs `prod/db-credentials` into a Kubernetes Secret |
+| `mongo-service.yaml` | Headless Service for MongoDB StatefulSet DNS discovery |
+| `mongo-statefulset.yaml` | MongoDB 3-node replica set StatefulSet using ESO-synced credentials |
 
 ## Setup
 
@@ -65,6 +67,8 @@ In `external-secret.yaml`, update:
 kubectl apply -f service-account.yaml
 kubectl apply -f cluster-secret-store.yaml
 kubectl apply -f external-secret.yaml
+kubectl apply -f mongo-service.yaml
+kubectl apply -f mongo-statefulset.yaml
 ```
 
 ### 4. Verify
@@ -78,6 +82,30 @@ kubectl get externalsecret -n app db-credentials
 
 # Verify the Kubernetes Secret was created
 kubectl get secret -n app db-credentials -o jsonpath='{.data.username}' | base64 -d
+```
+
+### 5. Verify MongoDB
+
+```bash
+# Check StatefulSet rollout
+kubectl get statefulset -n app mongo
+
+# Check all pods are running
+kubectl get pods -n app -l app=mongo
+
+# Initialize the replica set (run once after all pods are ready)
+kubectl exec -n app mongo-0 -- mongosh -u admin -p <password> --eval '
+rs.initiate({
+  _id: "rs0",
+  members: [
+    { _id: 0, host: "mongo-0.mongo.app.svc.cluster.local:27017" },
+    { _id: 1, host: "mongo-1.mongo.app.svc.cluster.local:27017" },
+    { _id: 2, host: "mongo-2.mongo.app.svc.cluster.local:27017" }
+  ]
+})'
+
+# Check replica set status
+kubectl exec -n app mongo-0 -- mongosh -u admin -p <password> --eval "rs.status()"
 ```
 
 ## Updating Secrets
