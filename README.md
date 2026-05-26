@@ -9,8 +9,6 @@ Kubernetes manifests for syncing database credentials from AWS Secrets Manager i
   eksctl create cluster --name my-cluster --region ap-south-1 --node-type t2.medium --version 1.35
   ```
 
-- EKS cluster with OIDC provider configured
-
 - [External Secrets Operator](https://external-secrets.io/) installed in the cluster
   
   ```bash
@@ -18,26 +16,6 @@ Kubernetes manifests for syncing database credentials from AWS Secrets Manager i
   helm repo update
   helm install external-secrets external-secrets/external-secrets --namespace external-secrets --create-namespace --set installCRDs=true
   ```
-
-- IAM role with the following permissions:
-  
-  ```json
-  {
-    "Version": "2012-10-17",
-    "Statement": [
-      {
-        "Effect": "Allow",
-        "Action": [
-          "secretsmanager:GetSecretValue",
-          "secretsmanager:DescribeSecret"
-        ],
-        "Resource": "arn:aws:secretsmanager:ap-south-1:<ACCOUNT_ID>:secret:prod/db-credentials-*"
-      }
-    ]
-  }
-  ```
-
-- IAM role trust policy allowing the EKS OIDC provider
 
 - If using a KMS customer-managed key, add `kms:Decrypt` permission on the KMS key ARN
 
@@ -53,7 +31,76 @@ Kubernetes manifests for syncing database credentials from AWS Secrets Manager i
 
 ## Setup
 
-### 1. Create the secret in AWS Secrets Manager
+### 1. Enable OIDC provider for the EKS cluster
+
+```bash
+# Check if OIDC is already associated
+aws eks describe-cluster --name my-cluster --region ap-south-1 \
+  --query "cluster.identity.oidc.issuer" --output text
+
+# If not, create the OIDC provider
+eksctl utils associate-iam-oidc-provider \
+  --cluster my-cluster \
+  --region ap-south-1 \
+  --approve
+```
+
+### 2. Create the IAM policy
+
+```bash
+aws iam create-policy \
+  --policy-name ESO-SecretsManager-Policy \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ],
+        "Resource": "arn:aws:secretsmanager:ap-south-1:<ACCOUNT_ID>:secret:prod/db-credentials-*"
+      }
+    ]
+  }'
+```
+
+### 3. Create the IAM role with trust policy
+
+```bash
+# Get your OIDC provider ID
+OIDC_ID=$(aws eks describe-cluster --name my-cluster --region ap-south-1 \
+  --query "cluster.identity.oidc.issuer" --output text | cut -d'/' -f5)
+
+# Create the role
+aws iam create-role \
+  --role-name ESO-SecretsManager-Role \
+  --assume-role-policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": {
+          "Federated": "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/oidc.eks.ap-south-1.amazonaws.com/id/'$OIDC_ID'"
+        },
+        "Action": "sts:AssumeRoleWithWebIdentity",
+        "Condition": {
+          "StringEquals": {
+            "oidc.eks.ap-south-1.amazonaws.com/id/'$OIDC_ID':sub": "system:serviceaccount:external-secrets:external-secrets-sa",
+            "oidc.eks.ap-south-1.amazonaws.com/id/'$OIDC_ID':aud": "sts.amazonaws.com"
+          }
+        }
+      }
+    ]
+  }'
+
+# Attach the policy to the role
+aws iam attach-role-policy \
+  --role-name ESO-SecretsManager-Role \
+  --policy-arn arn:aws:iam::<ACCOUNT_ID>:policy/ESO-SecretsManager-Policy
+```
+
+### 4. Create the secret in AWS Secrets Manager
 
 ```bash
 aws secretsmanager create-secret \
@@ -62,7 +109,7 @@ aws secretsmanager create-secret \
   --secret-string '{"username":"admin","password":"s3cur3pass"}'
 ```
 
-### 2. Update placeholders
+### 5. Update placeholders
 
 In `service-account.yaml`, replace:
 - `<ACCOUNT_ID>` — your AWS account ID
@@ -72,7 +119,7 @@ In `external-secret.yaml`, update:
 - `namespace` — the namespace where your application runs
 - `remoteRef.key` — if your secret name differs from `prod/db-credentials`
 
-### 3. Apply the manifests
+### 6. Apply the manifests
 
 ```bash
 kubectl apply -f service-account.yaml
@@ -82,7 +129,7 @@ kubectl apply -f mongo-service.yaml
 kubectl apply -f mongo-statefulset.yaml
 ```
 
-### 4. Verify
+### 7. Verify ESO
 
 ```bash
 # Check the ClusterSecretStore status
@@ -95,7 +142,7 @@ kubectl get externalsecret -n app db-credentials
 kubectl get secret -n app db-credentials -o jsonpath='{.data.username}' | base64 -d
 ```
 
-### 5. Verify MongoDB
+### 8. Verify MongoDB
 
 ```bash
 # Check StatefulSet rollout
