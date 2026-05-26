@@ -5,13 +5,21 @@ Kubernetes manifests for syncing database credentials from AWS Secrets Manager i
 ## Prerequisites
 
 - EKS cluster with OIDC provider configured
+  
+  ```
+  eksctl create cluster --name my-cluster --region ap-south-1 --node-type t2.medium --version 1.35
+  ```
+
 - [External Secrets Operator](https://external-secrets.io/) installed in the cluster
+  
   ```bash
   helm repo add external-secrets https://charts.external-secrets.io
   helm repo update
   helm install external-secrets external-secrets/external-secrets --namespace external-secrets --create-namespace --set installCRDs=true
   ```
+
 - IAM role with the following permissions:
+  
   ```json
   {
     "Version": "2012-10-17",
@@ -27,7 +35,9 @@ Kubernetes manifests for syncing database credentials from AWS Secrets Manager i
     ]
   }
   ```
+
 - IAM role trust policy allowing the EKS OIDC provider
+
 - If using a KMS customer-managed key, add `kms:Decrypt` permission on the KMS key ARN
 
 ## Files
