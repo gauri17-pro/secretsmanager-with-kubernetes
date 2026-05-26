@@ -17,6 +17,17 @@ Kubernetes manifests for syncing database credentials from AWS Secrets Manager i
   helm install external-secrets external-secrets/external-secrets --namespace external-secrets --create-namespace --set installCRDs=true
   ```
 
+- Install EBS CSI Controller
+  ```
+  aws iam attach-role-policy \
+  --role-name <NodeInstanceRoleName> \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
+  ```
+
+  ```
+  kubectl apply -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.44"
+  ```
+
 - If using a KMS customer-managed key, add `kms:Decrypt` permission on the KMS key ARN
 
 ## Files
