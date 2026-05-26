@@ -31,7 +31,16 @@ Kubernetes manifests for syncing database credentials from AWS Secrets Manager i
 
 ## Setup
 
-### 1. Enable OIDC provider for the EKS cluster
+### 1. Create the secret in AWS Secrets Manager
+
+```bash
+aws secretsmanager create-secret \
+  --name prod/db-credentials \
+  --region ap-south-1 \
+  --secret-string '{"username":"admin","password":"s3cur3pass"}'
+```
+
+### 2. Enable OIDC provider for the EKS cluster
 
 ```bash
 # Check if OIDC is already associated
@@ -45,7 +54,7 @@ eksctl utils associate-iam-oidc-provider \
   --approve
 ```
 
-### 2. Create the IAM policy
+### 3. Create the IAM policy
 
 ```bash
 aws iam create-policy \
@@ -65,7 +74,7 @@ aws iam create-policy \
   }'
 ```
 
-### 3. Create the IAM role with trust policy
+### 4. Create the IAM role with trust policy
 
 ```bash
 # Get your OIDC provider ID
@@ -98,15 +107,6 @@ aws iam create-role \
 aws iam attach-role-policy \
   --role-name ESO-SecretsManager-Role \
   --policy-arn arn:aws:iam::<ACCOUNT_ID>:policy/ESO-SecretsManager-Policy
-```
-
-### 4. Create the secret in AWS Secrets Manager
-
-```bash
-aws secretsmanager create-secret \
-  --name prod/db-credentials \
-  --region ap-south-1 \
-  --secret-string '{"username":"admin","password":"s3cur3pass"}'
 ```
 
 ### 5. Update placeholders
