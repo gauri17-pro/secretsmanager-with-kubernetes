@@ -4,6 +4,22 @@ Kubernetes manifests for syncing database credentials from AWS Secrets Manager i
 
 ## Prerequisites
 
+- Install kubectl
+  Refer https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/
+
+- Install eksctl
+  ```
+  curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+  sudo mv /tmp/eksctl /usr/local/bin
+  ```
+
+- Install helm
+  ```
+  curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4
+  chmod 700 get_helm.sh
+  ./get_helm.sh
+  ```
+
 - Create an EKS Cluster
   ```
   eksctl create cluster --name my-cluster --region ap-south-1 --node-type t2.medium --version 1.35
