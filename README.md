@@ -179,18 +179,8 @@ kubectl get statefulset -n app mongo
 kubectl get pods -n app -l app=mongo
 
 # Initialize the replica set (run once after all pods are ready)
-kubectl exec -n app mongo-0 -- mongosh -u admin -p <password> --eval '
-rs.initiate({
-  _id: "rs0",
-  members: [
-    { _id: 0, host: "mongo-0.mongo.app.svc.cluster.local:27017" },
-    { _id: 1, host: "mongo-1.mongo.app.svc.cluster.local:27017" },
-    { _id: 2, host: "mongo-2.mongo.app.svc.cluster.local:27017" }
-  ]
-})'
+kubectl exec -n app mongo-0 -- mongosh -u admin -p <password>
 
-# Check replica set status
-kubectl exec -n app mongo-0 -- mongosh -u admin -p <password> --eval "rs.status()"
 ```
 
 ## Updating Secrets
