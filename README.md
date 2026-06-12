@@ -22,7 +22,7 @@ Kubernetes manifests for syncing database credentials from AWS Secrets Manager i
 
 - Create an EKS Cluster
   ```
-  eksctl create cluster --name my-cluster --region ap-south-1 --node-type t2.medium --version 1.35
+  eksctl create cluster --name my-cluster --region ap-south-1 --node-type t3.medium --version 1.35
   ```
 
 - [External Secrets Operator](https://external-secrets.io/) installed in the cluster
